@@ -11,8 +11,9 @@ import pandas as pd
 import time
 import sys
 
+
 print("INICIANDO AUTOMAÇÃO!")
-smp_excel = r"C:\dados\base.xlsx"
+smp_excel = r"\\enterprise.ad\dados\ELD_TRANSPORTADORA\09 - Torre de Controle\09 - Rotinas Diárias\07 - Conferencia\01 - Conferencia Alocação X SMP.xlsm"
 aba_alocacao = "ALOCAÇÃO"
 aba_smp = "BASE SMP APISUL"
 coluna_fazenda = "Fazenda"
@@ -38,36 +39,34 @@ if df_criar_smp.empty:
 
 placas_pendentes = df_criar_smp[coluna_placa_aloc].dropna().unique().tolist()
 print(f"SMPs para criar: {len(df_criar_smp)}")
-
-# ======= FUNÇÃO PARA FAZER LOGIN CASO CAIA =======
+print(f"Placas que serão criadas: {placas_pendentes}")
+print("================================================")
 
 def fazer_login(driver_bot):
     print("Executando rotina de LOGIN...")
-    driver_bot.get("https://sistema-da-empresa.com/login")
+    driver_bot.get("https://novoapisullog.apisul.com.br/Login")
     try:
         usuario_input = WebDriverWait(driver_bot, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='txtUsuario']")))
         usuario_input.clear()
-        usuario_input.send_keys("usuario")
+        usuario_input.send_keys("leticia.reis")
 
         senha_input = WebDriverWait(driver_bot, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='txtSenha']")))
         senha_input.clear()
-        senha_input.send_keys("senha" + Keys.ENTER)
+        senha_input.send_keys("L3ticia@01" + Keys.ENTER)
         time.sleep(5)
         print("Login efetuado com sucesso!")
     except Exception as e:
         print(f"Erro ao tentar realizar o login: {e}")
-
-
-# ======= CRIANDO NAVEGADOR (DRIVER) =====================================================================================================================================================================================
 
 options = webdriver.ChromeOptions()
 options.add_experimental_option("detach", True)
 servico = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=servico, options=options)
 
-fazer_login(driver)
+servico = Service(ChromeDriverManager().install())
+driver = webdriver.Chrome(service=servico, options=options)
 
-# ======= LOOP DE CRIAÇÃO DAS SMPs ===================================================================================================================================================================
+fazer_login(driver)
 
 for index, linha in df_criar_smp.iterrows():
     placa = str(linha[coluna_placa_aloc]).strip().upper()
@@ -75,19 +74,16 @@ for index, linha in df_criar_smp.iterrows():
     frente = str(linha[coluna_frente])
     area_operacional = str(linha[coluna_operacao])
     data_atual = datetime.now().strftime('%d/%m/%Y 00:00')
-    
-    print(f"Placa: {placa} ({index + 1}/{len(df_criar_smp)})")
 
-    # --- VERIFICAÇÃO DE SESSÃO ATIVA ---
+    print(f"[PROCESSANDO] Placa: {placa} ({index + 1}/{len(df_criar_smp)})")
 
     if "Login" in driver.current_url or len(driver.find_elements(By.XPATH, "//*[@id='menu1']/span")) == 0:
-        print("Sessão expirada. Refazendo login...")
+        print("[ALERTA] Sessão expirada ou página de Login detectada. Refazendo login...")
         fazer_login(driver)
 
     try:
-        # --- NAVEGAÇÃO DO MENU ---
   
-        print("Acessando o menu...")
+        print("Acessando o menu e selecionando a opção de SMP...")
         
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='menu1']/span"))).click()
         time.sleep(3)
@@ -99,8 +95,7 @@ for index, linha in df_criar_smp.iterrows():
         WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='btnNovo']"))).click()
         time.sleep(4)
 
-        # --- DATA ---
-        
+       
         campo_data = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='ctl00_MainContent_txtDataInicioViagem_dateInput']")))
         actions = ActionChains(driver)
         actions.move_to_element(campo_data).click().perform()
@@ -111,7 +106,6 @@ for index, linha in df_criar_smp.iterrows():
         campo_data.send_keys(Keys.TAB)
         time.sleep(3)
 
-        # --- OPERAÇÃO ---
         
         campo_operacao = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='ctl00_MainContent_cmbTipoOperacao_Input']")))  
         campo_operacao.click()
@@ -124,7 +118,6 @@ for index, linha in df_criar_smp.iterrows():
             print(f"Não foi possível selecionar a opção {area_operacional}")
         time.sleep(3)
 
-        # --- TRANSPORTADORA ---
         
         campo_trp = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='ctl00_MainContent_txtEmitenteTransportadora_Input']")))
         campo_trp.click()
@@ -137,7 +130,6 @@ for index, linha in df_criar_smp.iterrows():
              print(f"Não foi possível selecionar a opção: {frente}")
         time.sleep(3)
 
-        # --- VEÍCULOS ---
         
         campo_veic = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='txtVeiculo_Input']")))
         campo_veic.click()
@@ -156,7 +148,6 @@ for index, linha in df_criar_smp.iterrows():
         btn_incluir.click()
         time.sleep(5)
 
-        # --- PRIMEIRO PONTO --- 
         
         vinc_pontos = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//*[@id='ctl00_MainContent_gridPontosVinculados_ctl00_ctl02_ctl00_lnkPontoExistente']")))
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", vinc_pontos)
@@ -166,7 +157,7 @@ for index, linha in df_criar_smp.iterrows():
         identificador = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='rcbIdentificadorPonto_Input']")))
         identificador.click()
         time.sleep(1)
-        identificador.send_keys("identificador")
+        identificador.send_keys("ELDORADO FABRICA")
         time.sleep(5)
 
         try:
@@ -174,7 +165,7 @@ for index, linha in df_criar_smp.iterrows():
             opcao_eldorado.click()
             time.sleep(3)
         except Exception:
-            print("Não foi possível clicar na sugestão para 'identificador'.")
+            print("Não foi possível clicar na sugestão para 'ELDORADO FABRICA'.")
 
         btn_salvar = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "ctl00_MainContent_gridPontosVinculados_ctl00_ctl02_ctl02_btnSalvarPontoSMP")))
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", btn_salvar)
@@ -182,7 +173,6 @@ for index, linha in df_criar_smp.iterrows():
         driver.execute_script("arguments[0].click();", btn_salvar)
         time.sleep(8)
 
-        # --- SEGUNDO PONTO ---
         
         vinc_pontos = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//*[@id='ctl00_MainContent_gridPontosVinculados_ctl00_ctl02_ctl00_lnkPontoExistente']")))
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", vinc_pontos)
@@ -203,7 +193,6 @@ for index, linha in df_criar_smp.iterrows():
             identificador.send_keys(Keys.ENTER)
             time.sleep(2)
 
-        # --- PREVISÃO DE CHEGADA ---
         
         data_chegada = datetime.now().strftime('%d/%m/%Y 23:00')
         campo_previsao = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='ctl00_MainContent_gridPontosVinculados_ctl00_ctl02_ctl02_txtPrevisaoChegada_dateInput']")))
@@ -222,7 +211,6 @@ for index, linha in df_criar_smp.iterrows():
         driver.execute_script("arguments[0].click();", btn_salvar)
         time.sleep(8)    
 
-        # --- ROTA ---
         
         print("GERANDO ROTA DINÂMICA...")
         dinamica = WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//*[@id='MainContent_rblTipoRota_0']")))
@@ -235,7 +223,6 @@ for index, linha in df_criar_smp.iterrows():
         driver.execute_script("arguments[0].  click();", gerar_rota)
         time.sleep(4)
 
-        # --- SMP Agendada ---
         
         print("CONFIGURANDO SMP AGENDADA...")
         smp_agendada = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//*[@id='MainContent_smpAgendada_txtNome']")))
@@ -270,10 +257,10 @@ for index, linha in df_criar_smp.iterrows():
         time.sleep(5)
 
     except Exception as e:
-        print(f"Ocorreu uma falha ao processar a placa {placa}: {e}")
-        print("Passando para a próxima placa...")
+        print(f"[ERRO] Ocorreu uma falha ao processar a placa {placa}: {e}")
+        print("Aguardando 5 segundos e tentando passar para a próxima placa...")
         time.sleep(5)
-        driver.get("https://sistema-da-empresa.com/login") 
+        driver.get("https://novoapisullog.apisul.com.br/Home") 
         time.sleep(3)
 
 print("\nAutomação concluída para todas as frotas pendentes!")
